@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DAYSCOUNTER | 3D Theme Dashboard</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.net.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --glass-bg: rgba(15, 23, 42, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-color: #ffffff;
+            --accent: #fbbf24;
+        }
+
+        /* Light Theme Styles */
+        [data-theme="light"] {
+            --glass-bg: rgba(255, 255, 255, 0.7);
+            --glass-border: rgba(0, 0, 0, 0.1);
+            --text-color: #1e293b;
+            --accent: #2563eb;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            color: var(--text-color);
+            margin: 0;
+            overflow-x: hidden;
+            transition: color 0.3s ease;
+        }
+
+        #vanta-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: -1;
+        }
+
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid var(--glass-border);
+            border-radius: 30px;
+            transition: background 0.5s ease, border 0.5s ease;
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .nav-btn {
+            padding: 10px 22px;
+            border-radius: 16px;
+            transition: all 0.3s;
+            white-space: nowrap;
+            font-weight: 700;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+        }
+
+        .nav-btn:hover, .nav-btn.active {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        [data-theme="dark"] .nav-btn:hover, [data-theme="dark"] .nav-btn.active {
+            color: #000;
+        }
+
+        /* Dropdown Logic Fix */
+        .dropdown { position: relative; }
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 50px;
+            min-width: 140px;
+            border-radius: 15px;
+            overflow: hidden;
+            z-index: 1000;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .dropdown:hover .dropdown-content { display: block; }
+
+        .theme-option {
+            width: 100%;
+            padding: 12px;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        .theme-option:hover { background: rgba(255,255,255,0.1); }
+
+        #custom-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 2000;
+            backdrop-filter: blur(15px);
+            align-items: center; justify-content: center;
+        }
+        #custom-modal.active { display: flex; }
+    </style>
+</head>
+
+<body>
+    <div id="vanta-canvas"></div>
+
+    <nav class="glass-panel sticky top-4 z-50 px-6 py-4 mx-4 mt-4">
+        <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
+            <div class="text-3xl font-black tracking-tighter italic shrink-0 uppercase">
+                DAYS<span class="text-yellow-500">COUNTER.</span>
+            </div>
+            
+            <div class="flex gap-2 overflow-x-auto no-scrollbar py-1 flex-1 justify-center">
+                <button onclick="filterExams('all')" class="nav-btn active">All</button>
+                <button onclick="filterExams('Board Exams')" class="nav-btn text-pink-400">Board Exams</button>
+                <button onclick="filterExams('RRB')" class="nav-btn text-green-400">RRB</button>
+                <button onclick="filterExams('TNPSC')" class="nav-btn text-orange-400">TNPSC</button>
+                <button onclick="filterExams('SSC')" class="nav-btn text-yellow-400">SSC</button>
+                <button onclick="filterExams('Banking')" class="nav-btn text-blue-400">Banking</button>
+                <button onclick="filterExams('JEE/NEET')" class="nav-btn text-cyan-400">JEE/NEET</button>
+                <button onclick="filterExams('My Timers')" class="nav-btn">My Timers</button>
+            </div>
+
+            <div class="flex gap-3 items-center shrink-0">
+                <button onclick="toggleModal(true)" class="bg-yellow-500 text-black px-6 py-2 rounded-xl font-black hover:scale-105 transition shadow-lg shadow-yellow-500/20">+ CREATE</button>
+                
+                <div class="dropdown">
+                    <button class="glass-panel w-12 h-12 rounded-xl flex items-center justify-center border border-white/20">
+                        <span id="current-theme-icon" class="text-xl">🌙</span>
+                    </button>
+                    <div class="dropdown-content glass-panel">
+                        <button onclick="changeTheme('dark')" class="theme-option">
+                            <span>🌙</span> Dark Mode
+                        </button>
+                        <button onclick="changeTheme('light')" class="theme-option">
+                            <span>☀️</span> Light Mode
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto p-6">
+        <header class="py-16 text-center">
+            <h1 class="text-6xl md:text-8xl font-black mb-4 uppercase tracking-tighter">
+                Focus <span class="text-yellow-500">& Win</span>
+            </h1>
+        </header>
+
+        <div id="exam-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 mb-20"></div>
+    </main>
+
+    <div id="custom-modal">
+        <div class="glass-panel p-10 w-full max-w-md mx-4">
+            <h2 class="text-3xl font-black mb-6 uppercase">New <span class="text-yellow-500">Goal</span></h2>
+            <div class="space-y-4">
+                <input type="text" id="custName" placeholder="Exam Name" class="w-full bg-black/20 border border-white/10 p-4 rounded-xl outline-none focus:border-yellow-500 text-white">
+                <input type="datetime-local" id="custDate" class="w-full bg-black/20 border border-white/10 p-4 rounded-xl outline-none focus:border-yellow-500 text-white">
+                <div class="flex gap-4 pt-4">
+                    <button onclick="toggleModal(false)" class="flex-1 py-3 font-bold opacity-50">Cancel</button>
+                    <button onclick="saveCustomTimer()" class="flex-1 py-3 bg-yellow-500 text-black font-black rounded-xl">Start</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 1. Initial 3D Background Setup
+        let vantaEffect = VANTA.NET({
+            el: "#vanta-canvas",
+            mouseControls: true, touchControls: true,
+            scale: 1.00, scaleMobile: 1.00,
+            color: 0xfbbf24, backgroundColor: 0x020617,
+            points: 12.00, maxDistance: 20.00, spacing: 16.00
+        });
+
+        // 2. Fixed Theme Function
+        function changeTheme(mode) {
+            document.documentElement.setAttribute('data-theme', mode);
+            document.getElementById('current-theme-icon').innerText = (mode === 'dark') ? '🌙' : '☀️';
+
+            if (mode === 'light') {
+                vantaEffect.setOptions({
+                    backgroundColor: 0xf8fafc,
+                    color: 0x3b82f6
+                });
+            } else {
+                vantaEffect.setOptions({
+                    backgroundColor: 0x020617,
+                    color: 0xfbbf24
+                });
+            }
+            localStorage.setItem('dayscounter-theme', mode);
+        }
+
+        // 3. Exam Data (Reduced for brevity, add your full list here)
+         const officialExams = [
+            // --- BOARD EXAMS ---
+            { id: 'b1', name: "10th - Tamil", date: "2026-03-27T10:00:00", cat: "Board Exams", color: "#f43f5e" },
+            { id: 'b2', name: "10th - English", date: "2026-03-31T10:00:00", cat: "Board Exams", color: "#3b82f6" },
+            { id: 'b3', name: "10th - Maths", date: "2026-04-07T10:00:00", cat: "Board Exams", color: "#eab308" },
+            { id: 'b4', name: "10th - Science", date: "2026-04-11T10:00:00", cat: "Board Exams", color: "#10b981" },
+            { id: 'b5', name: "10th - Social Science", date: "2026-04-15T10:00:00", cat: "Board Exams", color: "#f97316" },
+            { id: 'b6', name: "12th - Tamil", date: "2026-03-01T10:00:00", cat: "Board Exams", color: "#ef4444" },
+            { id: 'b7', name: "12th - English", date: "2026-03-05T10:00:00", cat: "Board Exams", color: "#3b82f6" },
+            { id: 'b8', name: "12th - Maths", date: "2026-03-12T10:00:00", cat: "Board Exams", color: "#eab308" },
+            { id: 'b9', name: "12th - Physics", date: "2026-03-18T10:00:00", cat: "Board Exams", color: "#a855f7" },
+            { id: 'b10', name: "12th - Chemistry", date: "2026-03-24T10:00:00", cat: "Board Exams", color: "#ec4899" },
+            { id: 'b11', name: "12th - Biology", date: "2026-03-30T10:00:00", cat: "Board Exams", color: "#22c55e" },
+            { id: 'b12', name: "12th - CS", date: "2026-04-02T10:00:00", cat: "Board Exams", color: "#06b6d4" },
+
+            // --- RRB ---
+            { id: 'r1', name: "RRB NTPC CBT-1", date: "2026-06-10T09:00:00", cat: "RRB", color: "#4ade80" },
+            { id: 'r2', name: "RRB ALP & Tech", date: "2026-05-15T09:00:00", cat: "RRB", color: "#22c55e" },
+            { id: 'r3', name: "RRB Group D", date: "2026-08-20T09:00:00", cat: "RRB", color: "#16a34a" },
+
+            // --- TNPSC ---
+            { id: 't1', name: "TNPSC Group 4 & VAO", date: "2026-06-15T10:00:00", cat: "TNPSC", color: "#f97316" },
+            { id: 't2', name: "TNPSC Group 2 & 2A", date: "2026-09-20T10:00:00", cat: "TNPSC", color: "#fb923c" },
+
+            // --- SSC ---
+            { id: 's1', name: "SSC CGL Tier-1", date: "2026-09-10T10:00:00", cat: "SSC", color: "#eab308" },
+            { id: 's2', name: "SSC CHSL Tier-1", date: "2026-06-25T10:00:00", cat: "SSC", color: "#facc15" },
+
+            // --- BANKING ---
+            { id: 'k1', name: "SBI PO Prelims", date: "2026-11-20T09:00:00", cat: "Banking", color: "#3b82f6" },
+            { id: 'k2', name: "IBPS Clerk Prelims", date: "2026-08-24T09:00:00", cat: "Banking", color: "#60a5fa" },
+
+            // JEE/NEET ---
+            { id: 'j1', name: "JEE Main 2026", date: "2026-01-24T09:00:00", cat: "JEE/NEET", color: "#22d3ee" },
+            { id: 'n1', name: "NEET UG 2026", date: "2026-05-03T14:00:00", cat: "JEE/NEET", color: "#10b981" }
+        ];
+        let customExams = JSON.parse(localStorage.getItem('userTimers')) || [];
+        let currentFilter = 'all';
+
+        function toggleModal(show) {
+            const modal = document.getElementById('custom-modal');
+            show ? modal.classList.add('active') : modal.classList.remove('active');
+        }
+
+        function saveCustomTimer() {
+            const name = document.getElementById('custName').value;
+            const date = document.getElementById('custDate').value;
+            if (name && date) {
+                const newT = { id: Date.now(), name, date, cat: "My Timers", color: "#fbbf24", isCustom: true };
+                customExams.push(newT);
+                localStorage.setItem('userTimers', JSON.stringify(customExams));
+                toggleModal(false);
+                renderExams(currentFilter);
+            }
+        }
+
+        function deleteTimer(id) {
+            customExams = customExams.filter(t => t.id !== id);
+            localStorage.setItem('userTimers', JSON.stringify(customExams));
+            renderExams(currentFilter);
+        }
+
+        function renderExams(filter = 'all') {
+            currentFilter = filter;
+            const container = document.getElementById('exam-container');
+            container.innerHTML = '';
+            const all = [...officialExams, ...customExams];
+
+            all.forEach((exam) => {
+                if (filter !== 'all' && exam.cat !== filter) return;
+                const card = document.createElement('div');
+                card.className = "glass-panel p-10 flex flex-col items-center relative group transition-all";
+                card.innerHTML = `
+                    ${exam.isCustom ? `<button onclick="deleteTimer(${exam.id})" class="absolute top-4 right-4 text-red-500 font-bold opacity-0 group-hover:opacity-100">X</button>` : ''}
+                    <span class="px-3 py-1 rounded-full bg-white/10 text-[10px] font-black uppercase mb-6 opacity-60">${exam.cat}</span>
+                    <h3 class="text-2xl font-black mb-8 text-center">${exam.name}</h3>
+                    <div class="relative flex items-center justify-center mb-10">
+                        <svg class="w-44 h-44 transform -rotate-90">
+                            <circle cx="88" cy="88" r="76" fill="none" stroke="rgba(0,0,0,0.05)" stroke-width="10"></circle>
+                            <circle id="circle-${exam.id}" cx="88" cy="88" r="76" fill="none" stroke="${exam.color}" stroke-width="10" stroke-dasharray="477" stroke-dashoffset="477" style="transition: stroke-dashoffset 1s linear"></circle>
+                        </svg>
+                        <span id="days-${exam.id}" class="absolute text-5xl font-black">0</span>
+                    </div>
+                    <div class="w-full py-4 rounded-2xl bg-black/20 text-center font-mono font-bold" id="timer-${exam.id}">00:00:00</div>
+                `;
+                container.appendChild(card);
+            });
+            updateAll();
+        }
+
+        function updateAll() {
+            const now = new Date().getTime();
+            [...officialExams, ...customExams].forEach((exam) => {
+                const target = new Date(exam.date).getTime();
+                const diff = target - now;
+                const dElem = document.getElementById(`days-${exam.id}`);
+                const tElem = document.getElementById(`timer-${exam.id}`);
+                const cElem = document.getElementById(`circle-${exam.id}`);
+
+                if (!dElem) return;
+                if (diff <= 0) {
+                    dElem.innerText = "!"; tElem.innerText = "STARTED";
+                    return;
+                }
+
+                const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const s = Math.floor((diff % (1000 * 60)) / 1000);
+
+                dElem.innerText = d;
+                tElem.innerText = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                cElem.style.strokeDashoffset = 477 - (Math.min(d, 100) / 100) * 477;
+            });
+        }
+
+        function filterExams(cat) {
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            renderExams(cat);
+        }
+
+        // Initialize saved theme on load
+        const savedTheme = localStorage.getItem('dayscounter-theme') || 'dark';
+        changeTheme(savedTheme);
+        renderExams();
+        setInterval(updateAll, 1000);
+    </script>
+</body>
+</html>
